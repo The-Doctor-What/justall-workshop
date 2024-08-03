@@ -11,7 +11,7 @@ export default function HomePage({}: Home) {
     const [addSection, setAddSection] = useState(1)
 
     return (
-        <Layout className="flex flex-row w-full h-screen items-center justify-center gap-6">
+        <Layout className="flex flex-row w-full h-screen items-center justify-center gap-6 max-md:flex-col">
             <section className="flex flex-col bg-lite-black min-w-min min-h-min rounded-xl p-6 gap-5">
                 <div className="flex flex-row gap-5">
                     <img
