@@ -1,5 +1,5 @@
 import {GetServerSideProps} from "next";
-import {Button, Graph, Layout, Link, Input, Error, Profile} from "@/components";
+import {Button, Graph, Layout, Input, Error, Profile} from "@/components";
 import React, {useContext, useState} from "react";
 import {NotificationsContext} from "@/pages/_app";
 import moment from "moment";

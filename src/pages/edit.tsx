@@ -1,8 +1,7 @@
 import {GetServerSideProps} from "next";
-import {Button, Graph, Layout, Link, Input, Error, Profile} from "@/components";
+import {Button, Layout, Input, Error, Profile} from "@/components";
 import React, {useContext, useState} from "react";
 import {NotificationsContext} from "@/pages/_app";
-import moment from "moment";
 import {useRouter} from "next/router";
 import {useSessionContext, useSupabaseClient} from "@supabase/auth-helpers-react";
 import {getUserData} from "@/utils/client/getAuthUser";
@@ -38,16 +37,30 @@ export default function EditPage({}: Home) {
     const [position, setPosition] = useState("")
     const [loyalty, setLoyalty] = useState("")
 
-    function changeSetting(section: string, value: string) {
-        if (!value) {
-            sendNotification("Ошибка", "error", "Поле не может быть пустым.")
-            return;
+    async function changeSetting(section: string, value: string) {
+        if (!value) return sendNotification("Ошибка", "error", "Поле не может быть пустым.")
+
+        const userData = JSON.parse(JSON.stringify(user));
+        delete userData.id
+        delete userData.access
+
+        userData[section] = value
+
+        const {data, error} = await supabase
+            .from('users')
+            .update(userData)
+            .eq('id', user.id)
+
+        if (error) {
+            console.error(error)
+            return sendNotification("Ошибка", "error", `Произошла ошибка при изменении данных: ${error.message}`)
         }
 
         sendNotification("Изменение данных", "success", `Данные успешно изменены.`)
     }
 
-    function changeSurcharge() {
+    async function changeSurcharge() {
+        await changeSetting("surcharge", (!user.surcharge).toString())
         sendNotification("Доплата за Д+О", "success", `Доплата за Д+О успешно ${user.surcharge ? "отключена" : "включена"}.`)
     }
 
@@ -81,7 +94,8 @@ export default function EditPage({}: Home) {
                                          className="w-48 rounded object-cover"/>
                                     <Input type="text" label="Ссылка на фото"
                                            onChange={(e) => setAvatar(e.target.value)}/>
-                                    <Button iconName="save" execute={(e: any) => changeSetting("avatar", avatar)}>Сохранить</Button>
+                                    <Button iconName="save"
+                                            execute={(e: any) => changeSetting("avatar", avatar)}>Сохранить</Button>
                                 </div>
                             </div>
                         )}
@@ -91,12 +105,14 @@ export default function EditPage({}: Home) {
                                 <div className="flex flex-col gap-5">
                                     <p>Сменить имя профиля</p>
                                     <Input type="text" label="Имя профиля" onChange={(e) => setName(e.target.value)}/>
-                                    <Button iconName="save" execute={(e: any) => changeSetting("name", name)}>Сохранить</Button>
+                                    <Button iconName="save"
+                                            execute={(e: any) => changeSetting("name", name)}>Сохранить</Button>
                                 </div>
                                 <div className="flex flex-col gap-5">
                                     <p>Сменить должность</p>
                                     <Input type="text" label="Должность" onChange={(e) => setPosition(e.target.value)}/>
-                                    <Button iconName="save" execute={(e: any) => changeSetting("role", position)}>Сохранить</Button>
+                                    <Button iconName="save"
+                                            execute={(e: any) => changeSetting("role", position)}>Сохранить</Button>
                                 </div>
                             </div>
                         )}
@@ -105,9 +121,12 @@ export default function EditPage({}: Home) {
                                 <p>Изменить дополнительные выплаты</p>
                                 <div className="flex flex-col gap-5">
                                     <Input type="text" label="Лояльность" onChange={(e) => setLoyalty(e.target.value)}/>
-                                    <Button iconName="save" execute={(e: any) => changeSetting("loyalty", loyalty)}>Сохранить</Button>
+                                    <Button iconName="save"
+                                            execute={(e: any) => changeSetting("loyalty", loyalty)}>Сохранить</Button>
                                 </div>
-                                <Button iconName="money-bill-wave" execute={changeSurcharge}>{user.surcharge ? "Отключить" : "Включить"} доплату за Д+О</Button>
+                                <Button iconName="money-bill-wave"
+                                        execute={changeSurcharge}>{user.surcharge ? "Отключить" : "Включить"} доплату за
+                                    Д+О</Button>
                             </div>
                         )}
                     </div>
