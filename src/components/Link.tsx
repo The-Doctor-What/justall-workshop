@@ -13,12 +13,9 @@ export type LinkProps = {
 
 export default function LinkButton({iconName, iconGroup, className, href, children, secondary}: LinkProps) {
 
-    const classPrimary = `p-2 rounded-md transition-colors focus:outline-none max-w-fit ${className ?? "bg-neutral-900 hover:bg-stone-900"}`
-    const classSecondary = `${className ?? ""} p-2 rounded bg-blue-700 hover:bg-blue-600 text-bold max-w-fit transition-colors focus:outline-none`
-
     return (
 
-        <Link href={href} className={secondary ? classSecondary : classPrimary}>
+        <Link href={href} className="bg-neutral-800 hover:bg-zinc-800 px-3 py-2 rounded-md transition-colors flex flex-row gap-2 items-center border-none">
             {iconName && (<Icon name={iconName} group={iconGroup}/>)} {children}
         </Link>
     )

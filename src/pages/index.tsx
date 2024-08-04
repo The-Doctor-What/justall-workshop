@@ -1,48 +1,84 @@
 import {GetServerSideProps} from "next";
-import {Button, Graph, Layout} from "@/components";
-import {useState} from "react";
+import {Button, Graph, Layout, Link, Input, Error, Profile} from "@/components";
+import React, {useContext, useState} from "react";
+import {NotificationsContext} from "@/pages/_app";
+import moment from "moment";
+import {useRouter} from "next/router";
+import {useSessionContext, useSupabaseClient} from "@supabase/auth-helpers-react";
+import {getUserData} from "@/utils/client/getAuthUser";
 
 type Home = {
     null: null;
 }
 
 export default function HomePage({}: Home) {
+    const router = useRouter();
+
+    const {session} = useSessionContext();
+    const supabase = useSupabaseClient()
+
+    if (!session) {
+        return (
+            <Layout title={"Главная"}>
+                <Error title={"Вы не авторизованы"}
+                       description={"Вы не можете просматривать эту страницу, так как вы не авторизованы."}
+                       recommendations={"Попробуйте авторизоваться и попробовать снова."}
+                       link={{href: "/auth", text: "Авторизоваться", icon: {name: "sign-in", group: "solid"}}}/>
+            </Layout>
+        )
+    }
+
+    function getNextSalaryDate(day: number) {
+        let currentDate = moment();
+        currentDate.date(day);
+
+        if (moment().date() >= day) currentDate.add(1, 'months');
+        if (currentDate.isoWeekday() === 6 || currentDate.isoWeekday() === 7) currentDate.isoWeekday(5);
+
+        const daysUntilSalary = currentDate.diff(moment(), 'days');
+
+        return {
+            date: currentDate.format('DD MMMM YYYY'),
+            daysUntil: daysUntilSalary
+        };
+    }
+
+
+    const user: any  = getUserData()
+
     const [statsSection, setStatsSection] = useState(1)
     const [addSection, setAddSection] = useState(1)
+    const {sendNotification} = useContext(NotificationsContext)
+
+    const [vacationStart, setVacationStart] = useState("")
+    const [vacationEnd, setVacationEnd] = useState("")
+
+    const [penaltySum, setPenaltySum] = useState(0)
+    const [penaltyID, setPenaltyID] = useState(0)
+    const [penaltyReason, setPenaltyReason] = useState("")
+
+    const [workTime, setWorkTime] = useState(0)
+
+    const [wowSegment, setWowSegment] = useState(0)
+
+    const [premiumSum, setPremiumSum] = useState(0)
+    const [premiumReason, setPremiumReason] = useState("")
+
+    const [soldQueue, setSoldQueue] = useState(0)
+    const [soldSegment, setSoldSegment] = useState(0)
+    const [soldSum, setSoldSum] = useState(0)
+
+    const [date, setDate] = useState(moment().format("YYYY-MM-DD"))
+
+    if (!user) {
+        return (<Layout>
+            <Error title="Загрузка" description="Загрузка данных пользователя..." recommendations="Пожалуйста, подождите."/>
+        </Layout>)
+    }
 
     return (
-        <Layout className="flex flex-row w-full h-screen items-center justify-center gap-6 max-md:flex-col">
-            <section className="flex flex-col bg-lite-black min-w-min min-h-min rounded-xl p-6 gap-5">
-                <div className="flex flex-row gap-5">
-                    <img
-                        src="https://sun151-1.userapi.com/impg/mNqloPyfxr0DdXetL5m8nGhBzM4B8P6hLXJt6A/iPE32lacZDA.jpg?size=800x1208&quality=95&sign=7774a4fb3a8d30e2438e4105c034ac92&type=album"
-                        alt="avatar" className="w-20 h-20 rounded-full object-cover"/>
-                    <div className="flex flex-col gap-1">
-                        <p>The Doctor What</p>
-                        <p className="text-zinc-500">Developer [D: 666]</p>
-                        <p className="text-zinc-500">ID: 1</p>
-                    </div>
-                </div>
-                <div className="flex flex-row gap-5">
-                    <div className="flex flex-col gap-2">
-                        <p>Лояльность</p>
-                        <p>Цель по выработке</p>
-                        <p>Доплата за Д+О</p>
-                    </div>
-                    <div className="flex flex-col gap-2">
-                        <p>1.07</p>
-                        <p>105 часов</p>
-                        <p>Активна</p>
-                    </div>
-                </div>
-                <div className="flex flex-col gap-3">
-                    <Button iconName="edit">Редактировать</Button>
-                    <Button iconName="calendar-days">Расписание</Button>
-                    <Button iconName="clock-rotate-left">История</Button>
-                    <Button iconName="right-to-bracket">Выход</Button>
-                </div>
-            </section>
-
+        <Layout className="flex flex-row w-full h-screen items-center justify-center gap-6 flex-wrap">
+            <Profile user={user}/>
             <section className="flex flex-row bg-lite-black min-w-min min-h-min rounded-xl p-6 gap-10">
                 <div className="flex flex-col gap-3">
                     <p className="text-xl">Статистика</p>
@@ -65,8 +101,6 @@ export default function HomePage({}: Home) {
                                 <Graph vertical={true}/>
                                 <div className="flex flex-row gap-5">
                                     <div className="flex flex-col gap-2">
-                                        <p>Время в диалоге</p>
-                                        <p>Время в ожидание</p>
                                         <p>Времени на линии</p>
                                         <p>Компесации</p>
                                         <p>Осталось</p>
@@ -74,8 +108,6 @@ export default function HomePage({}: Home) {
                                         <p>Доплата за работу по выходным</p>
                                     </div>
                                     <div className="flex flex-col gap-2">
-                                        <p>37:12</p>
-                                        <p>19:20</p>
                                         <p>56:32</p>
                                         <p>17:11</p>
                                         <p>32:29</p>
@@ -83,6 +115,8 @@ export default function HomePage({}: Home) {
                                         <p>140 баллов</p>
                                     </div>
                                 </div>
+
+                                <p>🎉 Поздравляю! Вы уже выполнили план по выработке! 🎉</p>
                             </div>
                         </div>
                     )}
@@ -154,8 +188,8 @@ export default function HomePage({}: Home) {
                                     </div>
                                     <div className="flex flex-col gap-2">
                                         <p>10.08.2024</p>
-                                        <p>22.08.2024</p>
-                                        <p>09.08.2024</p>
+                                        <p>{getNextSalaryDate(22).date}</p>
+                                        <p>{getNextSalaryDate(9).date}</p>
                                     </div>
                                 </div>
                             </div>
@@ -167,66 +201,88 @@ export default function HomePage({}: Home) {
                 <div className="flex flex-col gap-3">
                     <p className="text-xl">Назначить</p>
                     <Button iconName="thumbs-up" iconGroup="regular" execute={() => setAddSection(1)}>Успешка</Button>
-                    <Button iconName="handcuffs" execute={() => setAddSection(2)}>Штраф</Button>
-                    <Button iconName="plane-departure" execute={() => setAddSection(3)}>Отпуск</Button>
-                    <Button iconName="hand-holding-dollar" execute={() => setAddSection(4)}>Премия</Button>
-                    <Button iconName="medal" execute={() => setAddSection(5)}>WOW звонок</Button>
+                    <Button iconName="thumbs-up" iconGroup="regular" execute={() => setAddSection(2)}>Выработку</Button>
+                    <Button iconName="handcuffs" execute={() => setAddSection(3)}>Штраф</Button>
+                    <Button iconName="plane-departure" execute={() => setAddSection(4)}>Отпуск</Button>
+                    <Button iconName="hand-holding-dollar" execute={() => setAddSection(5)}>Премия</Button>
+                    <Button iconName="medal" execute={() => setAddSection(6)}>WOW звонок</Button>
                 </div>
                 <div className="flex flex-col gap-5">
                     {addSection === 1 && (
-                    <div className="flex flex-col gap-5">
-                        <p>Добавить успешку</p>
                         <div className="flex flex-col gap-5">
-                            <input type="text" placeholder="Очередь" className=""/>
-                            <input type="number" placeholder="ID сегмента" className=""/>
-                            <input type="number" placeholder="Сумма утиля" className=""/>
-                            <input type="date" placeholder="Дата" className=""/>
-                            <Button iconName="plus">Добавить</Button>
+                            <p>Добавить успешку</p>
+                            <div className="flex flex-col gap-5">
+                                <Input type="text" label="Очередь" onChange={(e) => setSoldQueue(Number(e.target.value))}/>
+                                <Input type="text" label="ID сегмента"
+                                       onChange={(e) => setSoldSegment(Number(e.target.value))}/>
+                                <Input type="text" label="Сумма утиля"
+                                       onChange={(e) => setSoldSum(Number(e.target.value))}/>
+                                <Input type="date" label="Дата" onChange={(e) => setDate(e.target.value)}/>
+                                <Button iconName="plus">Добавить</Button>
+                            </div>
                         </div>
-                    </div>
                     )}
                     {addSection === 2 && (
-                    <div className="flex flex-col gap-5">
-                        <p>Добавить штраф</p>
                         <div className="flex flex-col gap-5">
-                            <input type="number" placeholder="Сумма штрафа в баллах" className=""/>
-                            <input type="number" placeholder="ID оценки" className=""/>
-                            <input type="text" placeholder="Причина" className=""/>
-                            <input type="date" placeholder="Дата" className=""/>
-                            <Button iconName="plus">Добавить</Button>
+                            <p>Добавить выработку</p>
+                            <div className="flex flex-col gap-5">
+                                <Input type="text" label="Время работы"
+                                       onChange={(e) => setWorkTime(Number(e.target.value))}/>
+                                <Input type="date" label="Дата" onChange={(e) => setDate(e.target.value)}/>
+                                <Button iconName="plus">Добавить</Button>
+                            </div>
                         </div>
-                    </div>
                     )}
                     {addSection === 3 && (
-                    <div className="flex flex-col gap-5">
-                        <p>Добавить отпуск</p>
                         <div className="flex flex-col gap-5">
-                            <input type="date" placeholder="Дата начала" className=""/>
-                            <input type="date" placeholder="Дата окончания" className=""/>
-                            <Button iconName="plus">Добавить</Button>
+                            <p>Добавить штраф</p>
+                            <div className="flex flex-col gap-5">
+                                <Input type="text" label="Сумма штрафа в баллах"
+                                       onChange={(e) => setPenaltySum(Number(e.target.value))}/>
+                                <Input type="text" label="ID оценки"
+                                       onChange={(e) => setPenaltyID(Number(e.target.value))}/>
+                                <Input type="text" label="Причина"
+                                       onChange={(e) => setPenaltyReason(e.target.value)}/>
+                                <Input type="date" label="Дата" onChange={(e) => setDate(e.target.value)}/>
+                                <Button iconName="plus">Добавить</Button>
+                            </div>
                         </div>
-                    </div>
                     )}
                     {addSection === 4 && (
-                    <div className="flex flex-col gap-5">
-                        <p>Добавить премию</p>
                         <div className="flex flex-col gap-5">
-                            <input type="number" placeholder="Сумма премии" className=""/>
-                            <input type="text" placeholder="Причина" className=""/>
-                            <input type="date" placeholder="Дата" className=""/>
-                            <Button iconName="plus">Добавить</Button>
+                            <p>Добавить отпуск</p>
+                            <div className="flex flex-col gap-5">
+                                <Input type="date" label="Дата начала"
+                                       onChange={(e) => setVacationStart(e.target.value)}/>
+                                <Input type="date" label="Дата окончания"
+                                       onChange={(e) => setVacationEnd(e.target.value)}/>
+                                <Button iconName="plus">Добавить</Button>
+                            </div>
                         </div>
-                    </div>
                     )}
                     {addSection === 5 && (
-                    <div className="flex flex-col gap-5">
-                        <p>Добавить WOW звонок</p>
                         <div className="flex flex-col gap-5">
-                            <input type="number" placeholder="ID сегмента" className=""/>
-                            <input type="date" placeholder="Дата" className=""/>
-                            <Button iconName="plus">Добавить</Button>
+                            <p>Добавить премию</p>
+                            <div className="flex flex-col gap-5">
+                                <Input type="text" label="Сумма премии"
+                                       onChange={(e) => setPremiumSum(Number(e.target.value))}/>
+                                <Input type="text" label="Причина"
+                                       onChange={(e) => setPremiumReason(e.target.value)}/>
+                                <Input type="date" label="Дата" onChange={(e) => setDate(e.target.value)}/>
+                                <Button iconName="plus">Добавить</Button>
+                            </div>
                         </div>
-                    </div>
+                    )}
+                    {addSection === 6 && (
+                        <div className="flex flex-col gap-5">
+                            <p>Добавить WOW звонок</p>
+                            <div className="flex flex-col gap-5">
+                                <Input type="text" label="ID сегмента"
+                                       onChange={(e) => setWowSegment(Number(e.target.value))}/>
+                                <Input type="date" label="Дата" onChange={(e) => setDate(e.target.value)}/>
+                                <Button iconName="plus">Добавить</Button>
+                            </div>
+                        </div>
                     )}
                 </div>
             </section>
