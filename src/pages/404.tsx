@@ -1,5 +1,4 @@
-import {Error, Layout, Link} from "@/components";
-import {meta} from "@/utils/client/metaData";
+import {Error, Layout} from "@/components";
 
 export default function ErrorPage() {
     return (

@@ -33,7 +33,7 @@ export default function Icon({user}: ProfileProps) {
                 <Link iconName="user" href="/">Главная</Link>
                 <Link iconName="edit" href="/edit">Редактировать</Link>
                 <Button iconName="calendar-days">Расписание</Button>
-                <Button iconName="clock-rotate-left">История</Button>
+                <Link iconName="clock-rotate-left" href="/history">История</Link>
                 {user.access >= 69 && (
                     <Button iconName="list-check">Очереди</Button>
                 )}

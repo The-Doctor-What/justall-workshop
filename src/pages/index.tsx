@@ -6,6 +6,7 @@ import moment from "moment";
 import {useRouter} from "next/router";
 import {useSessionContext, useSupabaseClient} from "@supabase/auth-helpers-react";
 import {getUserData} from "@/utils/client/getAuthUser";
+import {getUserDaysData} from "@/utils/client/getDaysUser";
 
 type Home = {
     null: null;
@@ -44,7 +45,80 @@ export default function HomePage({}: Home) {
     }
 
 
-    const user: any  = getUserData()
+    const user: any = getUserData()
+    const userDays: any = getUserDaysData()
+
+    function getWorkedHours(){
+        const worked = {
+            timer: 0,
+            target: user.target * 60,
+            remaining: user.target * 60,
+            weekends: 0,
+            today: 0,
+            most: {
+                date: "В этом месяце никогда",
+                minutes: 0
+            },
+            workdays: 0,
+            vacation: 0,
+            sick: 0,
+            compensation: 0,
+            surcharge: 0,
+            weekendsSurcharge: 0,
+        }
+
+        for (const day of userDays) {
+            const date = moment(`${day.day}.${day.month}.${day.year}`, "DD.MM.YYYY")
+            if (day.month != moment().month() + 1) continue
+            worked.timer += day.minutes
+            worked.remaining -= day.minutes
+            worked.remaining = worked.remaining < 0 ? 0 : worked.remaining
+            worked.weekends += day.type == "weekend" ? 1 : 0
+            worked.today += day.day == moment().date() ? day.minutes : 0
+            worked.most = day.minutes > worked.most.minutes ? {date: `${day.day}.${day.month}.${day.year}`, minutes: day.minutes} : worked.most
+            worked.workdays += day.type == "work" ? 1 : 0
+            if (day.type == "vacation") worked.vacation++
+            if (day.type == "sick") worked.sick++
+            if (date.isoWeekday() === 6 || date.isoWeekday() === 7) worked.weekendsSurcharge += day.minutes / 60 * 4
+        }
+
+        const numberOfDaysInMonths = moment().daysInMonth()
+
+        worked.surcharge = worked.timer / 60 * 0.625
+
+        const minutesInDay = worked.target / numberOfDaysInMonths
+        worked.compensation = (worked.vacation + worked.sick) * minutesInDay
+        worked.remaining -= worked.compensation
+        worked.remaining = worked.remaining < 0 ? 0 : worked.remaining
+        worked.target -= worked.compensation
+        worked.target = worked.target < 0 ? 0 : worked.target
+
+        return worked
+    }
+
+    function workedFormatted() {
+        const works = getWorkedHours()
+
+        return {
+            timer: `${Math.floor(works.timer / 60)}:${works.timer % 60 < 10 ? '0' : ''}${works.timer % 60}`,
+            remaining: `${Math.floor(works.remaining / 60)}:${works.remaining % 60 < 10 ? '0' : ''}${Math.floor(works.remaining % 60)}`,
+            today: `${Math.floor(works.today / 60)}:${works.today % 60 < 10 ? '0' : ''}${Math.floor(works.today % 60)}`,
+            target: `${Math.floor(works.target / 60)}:${Math.floor(works.target % 60) < 10 ? '0' : ''}${Math.floor(works.target % 60)}`,
+            most: {
+                date: moment(works.most.date, "DD.MM.YYYY").format("LL"),
+                minutes: `${Math.floor(works.most.minutes / 60)}:${works.most.minutes % 60 < 10 ? '0' : ''}${works.most.minutes % 60}`
+            },
+            workdays: works.workdays,
+            weekends: works.weekends,
+            vacation: works.vacation,
+            compensation: `${Math.floor(works.compensation / 60)}:${works.compensation % 60 < 10 ? '0' : ''}${Math.floor(works.compensation % 60)}`,
+            sick: works.sick,
+            average: `${Math.floor(works.timer / works.workdays / 60)}:${Math.floor(works.timer / works.workdays % 60) < 10 ? '0' : ''}${Math.floor(works.timer / works.workdays % 60)}`,
+            surcharge: works.surcharge,
+            weekendsSurcharge: works.weekendsSurcharge,
+            realRemaining: works.remaining
+        }
+    }
 
     const [statsSection, setStatsSection] = useState(1)
     const [addSection, setAddSection] = useState(1)
@@ -57,7 +131,8 @@ export default function HomePage({}: Home) {
     const [penaltyID, setPenaltyID] = useState(0)
     const [penaltyReason, setPenaltyReason] = useState("")
 
-    const [workTime, setWorkTime] = useState(0)
+    const [workTimeMinutes, setWorkTimeMinutes] = useState(0)
+    const [workTimeHours, setWorkTimeHours] = useState(0)
 
     const [wowSegment, setWowSegment] = useState(0)
 
@@ -70,9 +145,54 @@ export default function HomePage({}: Home) {
 
     const [date, setDate] = useState(moment().format("YYYY-MM-DD"))
 
+    async function addWorkingData() {
+        if (!workTimeMinutes && !workTimeHours && !date) return sendNotification("Ошибка", "error", "Поле не может быть пустым.")
+
+        const {data, error} = await supabase
+            .from('days')
+            .select('*')
+            .eq('user_id', user.id)
+            .eq('day', moment(date).date())
+            .eq('month', moment(date).month() + 1)
+            .eq('year', moment(date).year())
+            .maybeSingle();
+
+        if (!data) {
+            const {data, error} = await supabase
+                .from('days')
+                .insert([{user_id: user.id, day: moment(date).date(), month: moment(date).month() + 1, year: moment(date).year(), minutes: workTimeMinutes + workTimeHours * 60}])
+
+            if (error) {
+                console.error(error)
+                return sendNotification("Ошибка", "error", `Произошла ошибка при добавлении данных: ${error.message}`)
+            }
+
+            sendNotification("Добавление данных", "success", `Данные успешно добавлены.`)
+        }
+        else {
+            const {data, error} = await supabase
+                .from('days')
+                .update({minutes: workTimeMinutes + workTimeHours * 60})
+                .eq('user_id', user.id)
+                .eq('day', moment(date).date())
+                .eq('month', moment(date).month() + 1)
+                .eq('year', moment(date).year())
+
+            if (error) {
+                console.error(error)
+                return sendNotification("Ошибка", "error", `Произошла ошибка при изменении данных: ${error.message}`)
+            }
+
+            sendNotification("Изменение данных", "success", `Данные успешно изменены.`)
+        }
+    }
+
+    const worked = workedFormatted()
+
     if (!user) {
         return (<Layout>
-            <Error title="Загрузка" description="Загрузка данных пользователя..." recommendations="Пожалуйста, подождите."/>
+            <Error title="Загрузка" description="Загрузка данных пользователя..."
+                   recommendations="Пожалуйста, подождите."/>
         </Layout>)
     }
 
@@ -108,15 +228,16 @@ export default function HomePage({}: Home) {
                                         <p>Доплата за работу по выходным</p>
                                     </div>
                                     <div className="flex flex-col gap-2">
-                                        <p>56:32</p>
-                                        <p>17:11</p>
-                                        <p>32:29</p>
-                                        <p>21 балл</p>
-                                        <p>140 баллов</p>
+                                        <p>{worked.timer}</p>
+                                        <p>{worked.compensation}</p>
+                                        <p>{worked.remaining}</p>
+                                        <p>{worked.surcharge} баллов</p>
+                                        <p>{worked.weekendsSurcharge} баллов</p>
                                     </div>
                                 </div>
-
+                                {worked.realRemaining <= 0 && (
                                 <p>🎉 Поздравляю! Вы уже выполнили план по выработке! 🎉</p>
+                                )}
                             </div>
                         </div>
                     )}
@@ -185,11 +306,19 @@ export default function HomePage({}: Home) {
                                         <p>Ближайший выходной</p>
                                         <p>Ближайшая предварительная выплата</p>
                                         <p>Ближайшая заплата</p>
+                                        <p>Выходных дней в месяце</p>
+                                        <p>Рабочих дней в месяце</p>
+                                        <p>Больничных дней в месяце</p>
+                                        <p>Дней в отпуске</p>
                                     </div>
                                     <div className="flex flex-col gap-2">
                                         <p>10.08.2024</p>
                                         <p>{getNextSalaryDate(22).date}</p>
                                         <p>{getNextSalaryDate(9).date}</p>
+                                        <p>{worked.weekends} дней</p>
+                                        <p>{worked.workdays} дней</p>
+                                        <p>{worked.sick} дней</p>
+                                        <p>{worked.vacation} дней</p>
                                     </div>
                                 </div>
                             </div>
@@ -212,7 +341,8 @@ export default function HomePage({}: Home) {
                         <div className="flex flex-col gap-5">
                             <p>Добавить успешку</p>
                             <div className="flex flex-col gap-5">
-                                <Input type="text" label="Очередь" onChange={(e) => setSoldQueue(Number(e.target.value))}/>
+                                <Input type="text" label="Очередь"
+                                       onChange={(e) => setSoldQueue(Number(e.target.value))}/>
                                 <Input type="text" label="ID сегмента"
                                        onChange={(e) => setSoldSegment(Number(e.target.value))}/>
                                 <Input type="text" label="Сумма утиля"
@@ -226,10 +356,12 @@ export default function HomePage({}: Home) {
                         <div className="flex flex-col gap-5">
                             <p>Добавить выработку</p>
                             <div className="flex flex-col gap-5">
-                                <Input type="text" label="Время работы"
-                                       onChange={(e) => setWorkTime(Number(e.target.value))}/>
+                                <Input type="text" label="Часов на линии"
+                                       onChange={(e) => setWorkTimeHours(Number(e.target.value))}/>
+                                <Input type="text" label="Минут на линии"
+                                        onChange={(e) => setWorkTimeMinutes(Number(e.target.value))}/>
                                 <Input type="date" label="Дата" onChange={(e) => setDate(e.target.value)}/>
-                                <Button iconName="plus">Добавить</Button>
+                                <Button iconName="plus" execute={addWorkingData}>Добавить</Button>
                             </div>
                         </div>
                     )}

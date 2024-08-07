@@ -1,21 +1,19 @@
 import {useSupabaseClient, useUser} from "@supabase/auth-helpers-react";
 import {useEffect, useState} from "react";
 
-export const getUserData = () => {
+export const getUserVacationsData = () => {
     const user = useUser();
     const supabase = useSupabaseClient();
-    const [data, setData] = useState(null);
+    const [data, setData] = useState(null as any);
 
     useEffect(() => {
         const fetchUserData = async () => {
             if (!user || !supabase) return;
 
             const { data, error } = await supabase
-                .from('users')
+                .from('vacations')
                 .select()
-                .eq('id', user.id)
-                .limit(1)
-                .maybeSingle();
+                .eq('user_id', user.id)
 
             if (error) {
                 console.error(error);
@@ -23,17 +21,7 @@ export const getUserData = () => {
             }
 
             if (!data) {
-                const { data: newData, error: insertError } = await supabase
-                    .from('users')
-                    .insert([{ id: user.id, name: user.user_metadata.user_name }])
-                    .single();
-
-                if (insertError) {
-                    console.error(insertError);
-                    return;
-                }
-
-                setData(newData);
+                setData(null);
             } else {
                 setData(data);
             }

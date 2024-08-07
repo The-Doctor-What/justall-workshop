@@ -6,11 +6,11 @@ import {useRouter} from "next/router";
 import {useSessionContext, useSupabaseClient} from "@supabase/auth-helpers-react";
 import {getUserData} from "@/utils/client/getAuthUser";
 
-type Home = {
+type Edit = {
     null: null;
 }
 
-export default function EditPage({}: Home) {
+export default function EditPage({}: Edit) {
     const router = useRouter();
 
     const {session} = useSessionContext();
@@ -29,7 +29,7 @@ export default function EditPage({}: Home) {
 
     const user: any = getUserData()
 
-    const [statsSection, setStatsSection] = useState(1)
+    const [editSection, setEditSection] = useState(1)
     const {sendNotification} = useContext(NotificationsContext)
 
     const [avatar, setAvatar] = useState("")
@@ -80,13 +80,13 @@ export default function EditPage({}: Home) {
                 <section className="flex flex-row bg-lite-black min-w-min min-h-min rounded-xl p-6 gap-10">
                     <div className="flex flex-col gap-3">
                         <p className="text-xl">Настройки</p>
-                        <Button iconName="image" execute={() => setStatsSection(1)}>Аватар</Button>
-                        <Button iconName="address-card" iconGroup="regular" execute={() => setStatsSection(2)}>Основные
+                        <Button iconName="image" execute={() => setEditSection(1)}>Аватар</Button>
+                        <Button iconName="address-card" iconGroup="regular" execute={() => setEditSection(2)}>Основные
                             данные</Button>
-                        <Button iconName="money-bill-trend-up" execute={() => setStatsSection(3)}>Заработок</Button>
+                        <Button iconName="money-bill-trend-up" execute={() => setEditSection(3)}>Заработок</Button>
                     </div>
                     <div className="flex flex-col gap-5">
-                        {statsSection === 1 && (
+                        {editSection === 1 && (
                             <div className="flex flex-col min-w-min min-h-min gap-5">
                                 <p>Сменить фото профиля</p>
                                 <div className="flex flex-col gap-5">
@@ -99,7 +99,7 @@ export default function EditPage({}: Home) {
                                 </div>
                             </div>
                         )}
-                        {statsSection === 2 && (
+                        {editSection === 2 && (
                             <div className="flex flex-col min-w-min min-h-min gap-5">
                                 <p className="text-lg">Основные данные</p>
                                 <div className="flex flex-col gap-5">
@@ -116,7 +116,7 @@ export default function EditPage({}: Home) {
                                 </div>
                             </div>
                         )}
-                        {statsSection === 3 && (
+                        {editSection === 3 && (
                             <div className="flex flex-col min-w-min min-h-min gap-5">
                                 <p>Изменить дополнительные выплаты</p>
                                 <div className="flex flex-col gap-5">
@@ -136,7 +136,7 @@ export default function EditPage({}: Home) {
     )
 }
 
-export const getServerSideProps: GetServerSideProps<Home> = async (ctx) => {
+export const getServerSideProps: GetServerSideProps<Edit> = async (ctx) => {
     const empty = {
         props: {
             null: null,
